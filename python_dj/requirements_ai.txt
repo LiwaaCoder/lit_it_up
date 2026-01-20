@@ -1,0 +1,19 @@
+# Enhanced AI Audio Analysis Requirements
+# For Let-It-Up with live lyrics and advanced beat detection
+
+# Core audio processing
+pyaudio==0.2.14
+numpy==1.24.3
+librosa==0.10.1          # Advanced audio analysis (bass, rhythm, BPM)
+soundfile==0.12.1        # Audio file I/O for librosa
+
+# Speech recognition for live lyrics
+SpeechRecognition==3.10.0
+pydub==0.25.1            # Audio format conversion
+
+# Real-time communication
+python-socketio[client]==5.11.0
+websocket-client==1.6.4
+
+# Optional: Whisper AI for better lyrics (requires more resources)
+# openai-whisper==20231117

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Let-It-Up - Enhanced AI Demo with Live Lyrics</title>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .main-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header with status */
+        .header {
+            padding: 20px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .status-dot.connected {
+            background: #00ff00;
+            box-shadow: 0 0 15px #00ff00;
+        }
+
+        .status-dot.disconnected {
+            background: #ff0000;
+            box-shadow: 0 0 15px #ff0000;
+        }
+
+        .bpm-display {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+        }
+
+        .bpm-value {
+            color: #00ffff;
+            font-size: 1.2em;
+        }
+
+        /* Center content area */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(255,255,255,0.5);
+        }
+
+        .event-type {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            font-weight: 300;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .event-type.show {
+            opacity: 1;
+        }
+
+        /* Lyrics Display - Karaoke Style */
+        .lyrics-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(0deg, rgba(0,0,0,0.95) 0%, transparent 100%);
+            padding: 40px 20px 30px;
+            text-align: center;
+            z-index: 50;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .lyrics-text {
+            font-size: 2.5em;
+            font-weight: 600;
+            line-height: 1.4;
+            text-shadow: 0 0 20px rgba(0,0,0,0.8),
+                         0 0 40px rgba(255,255,255,0.3);
+            animation: lyricsPulse 0.5s ease-in-out;
+            background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        @keyframes lyricsPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .lyrics-label {
+            font-size: 0.9em;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Audio Spectrum Visualizer */
+        .spectrum-container {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            right: 20px;
+            height: 100px;
+            z-index: 5;
+            display: flex;
+            gap: 3px;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .spectrum-bar {
+            flex: 1;
+            max-width: 15px;
+            background: linear-gradient(180deg, #ff00ff, #00ffff);
+            border-radius: 3px 3px 0 0;
+            transition: height 0.1s ease-out;
+            opacity: 0.7;
+        }
+
+        /* Flash overlay */
+        .flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease-out;
+            z-index: 1000;
+        }
+
+        .flash-overlay.active {
+            opacity: 1;
+        }
+
+        /* Stats panel */
+        .stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(20px);
+            font-size: 0.85em;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            gap: 20px;
+        }
+
+        .stats-label {
+            color: rgba(255,255,255,0.6);
+        }
+
+        .stats-value {
+            font-weight: bold;
+            color: #00ffff;
+        }
+
+        .event-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .event-badge.bass_drop { background: #ff0066; }
+        .event-badge.vocal { background: #00ff88; }
+        .event-badge.rhythm { background: #00aaff; }
+        .event-badge.build { background: #ff9900; }
+
+        /* Audio intensity meter */
+        .intensity-meter {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 300px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.2);
+            z-index: 100;
+        }
+
+        .intensity-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(180deg, #ff0000, #ffff00, #00ff00);
+            transition: height 0.1s ease-out;
+        }
+
+        @media (max-width: 768px) {
+            .lyrics-text {
+                font-size: 1.8em;
+            }
+            .logo {
+                font-size: 3em;
+            }
+            .stats {
+                font-size: 0.75em;
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="status-indicator">
+                <div class="status-dot disconnected" id="status-dot"></div>
+                <span id="status-text">Disconnected</span>
+            </div>
+            <div class="bpm-display">
+                <span class="bpm-value" id="bpm">0</span> BPM
+            </div>
+        </div>
+
+        <!-- Spectrum Visualizer -->
+        <div class="spectrum-container" id="spectrum">
+            <!-- Bars generated by JS -->
+        </div>
+
+        <!-- Intensity Meter -->
+        <div class="intensity-meter">
+            <div class="intensity-fill" id="intensity-fill"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <div class="logo" id="logo">🎵</div>
+            <div class="event-type" id="event-type"></div>
+        </div>
+
+        <!-- Lyrics Display -->
+        <div class="lyrics-container">
+            <div class="lyrics-label">🎤 LIVE LYRICS</div>
+            <div class="lyrics-text" id="lyrics">Waiting for vocals...</div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stats-row">
+                <span class="stats-label">Event:</span>
+                <span class="stats-value" id="event-display">-</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Bass:</span>
+                <span class="stats-value" id="bass-level">0</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Flashes:</span>
+                <span class="stats-value" id="flash-count">0</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Latency:</span>
+                <span class="stats-value" id="latency">-</span>
+            </div>
+        </div>
+
+        <!-- Flash Overlay -->
+        <div class="flash-overlay" id="flash-overlay"></div>
+    </div>
+
+    <script>
+        const SERVER_URL = 'http://localhost:3000';
+
+        // DOM elements
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const lyricsEl = document.getElementById('lyrics');
+        const bpmEl = document.getElementById('bpm');
+        const flashOverlay = document.getElementById('flash-overlay');
+        const eventTypeEl = document.getElementById('event-type');
+        const logoEl = document.getElementById('logo');
+        const flashCountEl = document.getElementById('flash-count');
+        const bassLevelEl = document.getElementById('bass-level');
+        const latencyEl = document.getElementById('latency');
+        const eventDisplayEl = document.getElementById('event-display');
+        const intensityFill = document.getElementById('intensity-fill');
+        const spectrumContainer = document.getElementById('spectrum');
+
+        let socket;
+        let flashCount = 0;
+        let isFlashing = false;
+        let spectrumBars = [];
+
+        // Initialize spectrum visualizer
+        function initSpectrum() {
+            for (let i = 0; i < 30; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'spectrum-bar';
+                bar.style.height = '10px';
+                spectrumContainer.appendChild(bar);
+                spectrumBars.push(bar);
+            }
+        }
+
+        // Update spectrum visualization
+        function updateSpectrum(bassEnergy, midEnergy, highEnergy) {
+            const maxEnergy = 10000;
+            spectrumBars.forEach((bar, i) => {
+                let energy;
+                if (i < 10) energy = bassEnergy;
+                else if (i < 20) energy = midEnergy;
+                else energy = highEnergy;
+
+                const height = Math.min((energy / maxEnergy) * 100, 100);
+                bar.style.height = height + 'px';
+            });
+        }
+
+        // Flash colors by event type
+        const flashColors = {
+            'bass_drop': '#ffffff',
+            'vocal': '#ff00ff',
+            'rhythm': '#00ffff',
+            'build': '#ff9900',
+            'manual': '#ffffff'
+        };
+
+        // Event emojis
+        const eventEmojis = {
+            'bass_drop': '💥',
+            'vocal': '🎤',
+            'rhythm': '🎵',
+            'build': '📈',
+            'manual': '🔧'
+        };
+
+        async function triggerFlash(eventType = 'rhythm', intensity = 1.0) {
+            if (isFlashing) return;
+            isFlashing = true;
+            flashCount++;
+
+            // Update stats
+            flashCountEl.textContent = flashCount;
+
+            // Show event type
+            eventTypeEl.textContent = eventType.replace('_', ' ');
+            eventTypeEl.classList.add('show');
+            logoEl.textContent = eventEmojis[eventType] || '🎵';
+
+            // Flash color based on event
+            const color = flashColors[eventType] || '#ffffff';
+            flashOverlay.style.backgroundColor = color;
+
+            // Flash animation
+            flashOverlay.classList.add('active');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            flashOverlay.classList.remove('active');
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            // Hide event type
+            eventTypeEl.classList.remove('show');
+
+            isFlashing = false;
+        }
+
+        function connectToServer() {
+            socket = io(SERVER_URL, {
+                transports: ['websocket'],
+                reconnection: true
+            });
+
+            socket.on('connect', () => {
+                console.log('✅ Connected');
+                statusDot.className = 'status-dot connected';
+                statusText.textContent = 'Connected';
+                socket.emit('identify', { type: 'mobile' });
+            });
+
+            // Enhanced audio analysis event
+            socket.on('audio_analysis', (data) => {
+                console.log('🎵 Audio analysis:', data);
+
+                // Update BPM
+                if (data.bpm > 0) {
+                    bpmEl.textContent = data.bpm;
+                }
+
+                // Update event display
+                eventDisplayEl.textContent = data.event_type.toUpperCase();
+
+                // Update bass level
+                bassLevelEl.textContent = Math.round(data.bass_energy || 0);
+
+                // Update intensity meter
+                const intensityPercent = Math.min(data.intensity * 100, 100);
+                intensityFill.style.height = intensityPercent + '%';
+
+                // Update spectrum
+                updateSpectrum(
+                    data.bass_energy || 0,
+                    data.mid_energy || 0,
+                    data.high_energy || 0
+                );
+
+                // Calculate latency
+                if (data.timestamp) {
+                    const latency = Date.now() - (data.timestamp * 1000);
+                    latencyEl.textContent = Math.round(latency) + 'ms';
+                }
+
+                // Trigger flash
+                triggerFlash(data.event_type, data.intensity);
+            });
+
+            // Live lyrics update
+            socket.on('lyrics_update', (data) => {
+                console.log('🎤 Lyrics:', data.text);
+                lyricsEl.textContent = data.text;
+
+                // Animate lyrics
+                lyricsEl.style.animation = 'none';
+                setTimeout(() => {
+                    lyricsEl.style.animation = 'lyricsPulse 0.5s ease-in-out';
+                }, 10);
+            });
+
+            // Backward compatibility with old flash_pulse
+            socket.on('flash_pulse', (data) => {
+                if (!data.event_type) {  // Only if not from audio_analysis
+                    triggerFlash('rhythm', data.intensity || 1.0);
+                }
+            });
+
+            socket.on('disconnect', () => {
+                console.log('❌ Disconnected');
+                statusDot.className = 'status-dot disconnected';
+                statusText.textContent = 'Disconnected';
+            });
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            initSpectrum();
+            connectToServer();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && socket && socket.connected) {
+                e.preventDefault();
+                socket.emit('manual_trigger', {});
+            }
+        });
+    </script>
+</body>
+</html>

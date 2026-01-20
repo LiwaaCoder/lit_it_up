@@ -1,0 +1,81 @@
+### IntelliJ IDEA ###
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+.kotlin
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### Node.js (Backend) ###
+backend/node_modules/
+backend/package-lock.json
+backend/.env
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
+### Python (DJ Listener) ###
+python_dj/__pycache__/
+python_dj/*.pyc
+python_dj/*.pyo
+python_dj/*.pyd
+python_dj/.Python
+python_dj/env/
+python_dj/venv/
+python_dj/.venv/
+python_dj/pip-log.txt
+python_dj/pip-delete-this-directory.txt
+python_dj/.pytest_cache/
+python_dj/*.egg-info/
+
+### Flutter (Mobile App) ###
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.packages
+flutter_app/.pub-cache/
+flutter_app/.pub/
+flutter_app/build/
+flutter_app/ios/Flutter/flutter_export_environment.sh
+flutter_app/ios/Pods/
+flutter_app/ios/.symlinks/
+flutter_app/ios/Flutter/Generated.xcconfig
+flutter_app/android/.gradle/
+flutter_app/android/captures/
+flutter_app/android/gradlew
+flutter_app/android/gradlew.bat
+flutter_app/android/local.properties
+flutter_app/android/.idea/
+flutter_app/android/app/debug/
+flutter_app/android/app/profile/
+flutter_app/android/app/release/
+flutter_app/.metadata
+
+### Logs and Temporary Files ###
+*.log
+/tmp/
+*.tmp
+*.temp
